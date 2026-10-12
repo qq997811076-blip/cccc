@@ -89,6 +89,15 @@ func main() {
 		workers = len(req.Nodes)
 	}
 
+	total := len(req.Nodes)
+	progressStep := total / 100
+	if progressStep < 1 {
+		progressStep = 1
+	}
+	completed := 0
+	var progressMu sync.Mutex
+	fmt.Fprintf(os.Stderr, "TCP进度：0/%d (0.0%%)\\n", total)
+
 	jobs := make(chan string)
 	results := make(chan Result, len(req.Nodes))
 	var wg sync.WaitGroup
@@ -100,6 +109,12 @@ func main() {
 				if result := testNode(node, time.Duration(req.Timeout*float64(time.Second)), req.Probes, req.MinSuccessRate); result != nil {
 					results <- *result
 				}
+				progressMu.Lock()
+				completed++
+				if completed%progressStep == 0 || completed == total {
+					fmt.Fprintf(os.Stderr, "TCP进度：%d/%d (%.1f%%)\\n", completed, total, float64(completed)*100/float64(total))
+				}
+				progressMu.Unlock()
 			}
 		}()
 	}

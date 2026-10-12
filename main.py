@@ -1136,22 +1136,22 @@ def run_go_tcp_checker(nodes):
             char = process.stderr.read(1)
             if not char:
                 break
-            if char in ("\\r", "\\n"):
+            if char in ("\r", "\n"):
                 line = "".join(progress_buffer)
                 progress_buffer.clear()
                 if line:
                     stderr_lines.append(line)
                     # 清除本行残留字符，避免位数变短时留下旧数字。
-                    if char == "\\n":
-                        print("\\r" + line + "\\033[K", flush=True)
+                    if char == "\n":
+                        print("\r" + line + "\033[K", flush=True)
                     else:
-                        print("\\r" + line + "\\033[K", end="", flush=True)
+                        print("\r" + line + "\033[K", end="", flush=True)
             else:
                 progress_buffer.append(char)
         if progress_buffer:
             line = "".join(progress_buffer)
             stderr_lines.append(line)
-            print("\\r" + line + "\\033[K", flush=True)
+            print("\r" + line + "\033[K", flush=True)
 
     progress_thread = threading.Thread(target=_read_go_progress, daemon=True)
     progress_thread.start()

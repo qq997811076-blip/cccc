@@ -1117,17 +1117,41 @@ def run_go_tcp_checker(nodes):
         "min_success_rate": MIN_SUCCESS_RATE,
         "max_workers": MAX_WORKERS,
     }
-    completed = subprocess.run(
+    # 独立线程持续读取 Go 的 stderr 进度，避免管道缓冲区写满后互相等待。
+    process = subprocess.Popen(
         [binary],
-        input=json.dumps(request_data, ensure_ascii=False),
-        capture_output=True, text=True, cwd=script_dir
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        cwd=script_dir
     )
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "未知运行错误").strip()
-        raise RuntimeError("Go TCP 测试器运行失败：\n" + detail)
+    stderr_lines = []
+
+    def _read_go_progress():
+        for line in process.stderr:
+            line = line.rstrip()
+            if line:
+                stderr_lines.append(line)
+                print(line, flush=True)
+
+    progress_thread = threading.Thread(target=_read_go_progress, daemon=True)
+    progress_thread.start()
+    try:
+        process.stdin.write(json.dumps(request_data, ensure_ascii=False))
+        process.stdin.close()
+        stdout = process.stdout.read()
+        return_code = process.wait()
+    finally:
+        progress_thread.join()
+
+    if return_code != 0:
+        detail = ("\\n".join(stderr_lines) or stdout or "未知运行错误").strip()
+        raise RuntimeError("Go TCP 测试器运行失败：\\n" + detail)
 
     try:
-        raw_results = json.loads(completed.stdout)
+        raw_results = json.loads(stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError("Go TCP 测试器返回的数据格式不正确。") from exc
 

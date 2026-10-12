@@ -1,0 +1,55 @@
+name: Extract Go library archive
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/extract-go-archive.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract all project files into repository root
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="cfnb-go-tcp-checker.zip"
+          test -f "$ARCHIVE" || { echo "Archive not found: $ARCHIVE"; exit 1; }
+          mkdir -p /tmp/go-archive
+          unzip -q "$ARCHIVE" -d /tmp/go-archive
+
+          # If the archive contains one top-level directory, copy its contents;
+          # otherwise copy all extracted entries. Keep the original ZIP in the repo.
+          shopt -s dotglob nullglob
+          entries=(/tmp/go-archive/*)
+          if [ "${#entries[@]}" -eq 1 ] && [ -d "${entries[0]}" ]; then
+            cp -a "${entries[0]}"/. .
+          else
+            cp -a /tmp/go-archive/. .
+          fi
+
+          echo "Extracted files:"
+          find . -maxdepth 3 -type f ! -path "./.git/*" ! -path "./.github/workflows/*" | sort | head -200
+
+      - name: Commit extracted files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted changes to commit."
+            exit 0
+          fi
+          git commit -m "Extract Go TCP checker project archive"
+          git push origin HEAD:main

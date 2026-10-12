@@ -1130,11 +1130,28 @@ def run_go_tcp_checker(nodes):
     stderr_lines = []
 
     def _read_go_progress():
-        for line in process.stderr:
-            line = line.rstrip()
-            if line:
-                stderr_lines.append(line)
-                print(line, flush=True)
+        # Go 使用回车符 \r 更新同一行；逐字符读取，不能按普通行读取。
+        progress_buffer = []
+        while True:
+            char = process.stderr.read(1)
+            if not char:
+                break
+            if char in ("\\r", "\\n"):
+                line = "".join(progress_buffer)
+                progress_buffer.clear()
+                if line:
+                    stderr_lines.append(line)
+                    # 清除本行残留字符，避免位数变短时留下旧数字。
+                    if char == "\\n":
+                        print("\\r" + line + "\\033[K", flush=True)
+                    else:
+                        print("\\r" + line + "\\033[K", end="", flush=True)
+            else:
+                progress_buffer.append(char)
+        if progress_buffer:
+            line = "".join(progress_buffer)
+            stderr_lines.append(line)
+            print("\\r" + line + "\\033[K", flush=True)
 
     progress_thread = threading.Thread(target=_read_go_progress, daemon=True)
     progress_thread.start()

@@ -96,7 +96,7 @@ func main() {
 	}
 	completed := 0
 	var progressMu sync.Mutex
-	fmt.Fprintf(os.Stderr, "TCP进度：0/%d (0.0%%)\n", total)
+	fmt.Fprintf(os.Stderr, "\rTCP进度：0/%d (0.0%%)", total)
 
 	jobs := make(chan string)
 	results := make(chan Result, len(req.Nodes))
@@ -112,7 +112,11 @@ func main() {
 				progressMu.Lock()
 				completed++
 				if completed%progressStep == 0 || completed == total {
-					fmt.Fprintf(os.Stderr, "TCP进度：%d/%d (%.1f%%)\n", completed, total, float64(completed)*100/float64(total))
+					if completed == total {
+						fmt.Fprintf(os.Stderr, "\rTCP进度：%d/%d (%.1f%%)\n", completed, total, float64(completed)*100/float64(total))
+					} else {
+						fmt.Fprintf(os.Stderr, "\rTCP进度：%d/%d (%.1f%%)", completed, total, float64(completed)*100/float64(total))
+					}
 				}
 				progressMu.Unlock()
 			}

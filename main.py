@@ -1147,8 +1147,8 @@ def run_go_tcp_checker(nodes):
         progress_thread.join()
 
     if return_code != 0:
-        detail = ("\\n".join(stderr_lines) or stdout or "未知运行错误").strip()
-        raise RuntimeError("Go TCP 测试器运行失败：\\n" + detail)
+        detail = ("\n".join(stderr_lines) or stdout or "未知运行错误").strip()
+        raise RuntimeError("Go TCP 测试器运行失败：\n" + detail)
 
     try:
         raw_results = json.loads(stdout)
